@@ -10,9 +10,9 @@ also expand to early vote site and drop box locations, in addition to ballot inf
 
 ## Prerequisites
 
-You will need to set up [Amazon Web Services CLI] (http://docs.aws.amazon.com/cli/latest/userguide/installing.html) on your machine.   All Alexa Skills are hosted out of the US-EAST-1, so you will want to set your configuration accordingly.
+You will need to set up [Amazon Web Services CLI](http://docs.aws.amazon.com/cli/latest/userguide/installing.html) on your machine.   All Alexa Skills are hosted out of the US-EAST-1, so you will want to set your configuration accordingly.
 
-You will also need [Leiningen] (https://leiningen.org/)
+You will also need [Leiningen](https://leiningen.org/)
 
 ## Deploying
 
