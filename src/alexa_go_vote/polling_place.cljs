@@ -13,14 +13,12 @@
    :response {:directives [{:type "Dialog.Delegate"}]}})
 
 (defn server-error []
-  (.log js/console "Responding with server-error")
+  (.log js/console "Responding with Server Error")
   {:version 1.0
    :response {:outputSpeech
               {:type "PlainText"
                :text "I'm sorry, we're experiencing a server problem. Goodbye."
                :shouldEndSession true}}})
-
-;; (query-polling-place "3632  INTERLAKE AVE N SEATTLE WA 98103")
 
 (defn process-response
   [response]
@@ -31,8 +29,7 @@
           polling-location (first polling-locations)
           address (get polling-location :address)
           name (get address :locationName)
-          address (str/join ", " [(get address :line1) (get address :line2)
-                                  (get address :city) (get address :zip)])]
+          address (str/join ", " (filter identity (map address [:line1 :line2 :city :zip])))]
       (.log js/console "Responding with polling location " name)
       {:version 1.0
        :response {:outputSpeech
