@@ -14,6 +14,8 @@
   :npm {:dependencies [[source-map-support "0.4.0"]]}
   :source-paths ["src"]
   :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
+  :doo {:build "test"}
+  :aliases {"test" ["doo" "node" "once"]}
   :profiles
   {:dev-overrides {}
    :dev
@@ -37,7 +39,7 @@
                         :target        :nodejs
                         :language-in   :ecmascript5
                         :optimizations :advanced}}
-            {:id "alexa-go-vote-test"
+            {:id "test"
              :source-paths ["src" "test"]
              :compiler {:output-to     "target/alexa_go_vote_test/alexa-go-vote.js"
                         :output-dir    "target/alexa_go_vote_test"
