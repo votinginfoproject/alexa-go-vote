@@ -6,30 +6,40 @@
             [cljs-lambda.context :as ctx])
   (:require-macros [cljs.core.async.macros :refer [go]]))
 
-(defn dialog-delegate
-  []
-  (.log js/console "Responding with Dialog.Delegate")
+(def dialog-delegate-response
   {:version 1.0
    :response {:directives [{:type "Dialog.Delegate"}]}})
 
-(defn server-error []
-  (.log js/console "Responding with Server Error")
+(def server-error-response
   {:version 1.0
    :response {:outputSpeech
               {:type "PlainText"
                :text "I'm sorry, we're experiencing a server problem. Goodbye."
                :shouldEndSession true}}})
 
+(defn response->clj
+  [response]
+  (as-> response $
+    (:body $)
+    (.toString $)
+    (.parse js/JSON $)
+    (js->clj $ :keywordize-keys true)))
+
+(defn body->polling-place-info
+  [body]
+  (let [polling-locations (:pollingLocations body)
+        polling-location (first polling-locations)
+        address (get polling-location :address)
+        name (get address :locationName)
+        addr-comps (filter identity (map address [:line1 :line2 :city :zip]))
+        addr-string (str/join ", " addr-comps)]
+    [name addr-string]))
+
 (defn process-response
   [response]
   (if (http/unexceptional-status? (:status response))
-    (let [body-json (->> response :body .toString (.parse js/JSON))
-          body (js->clj body-json :keywordize-keys true)
-          polling-locations (:pollingLocations body)
-          polling-location (first polling-locations)
-          address (get polling-location :address)
-          name (get address :locationName)
-          address (str/join ", " (filter identity (map address [:line1 :line2 :city :zip])))]
+    (let [body (response->clj response)
+          [name address] (body->polling-place-info body)]
       (.log js/console "Responding with polling location " name)
       {:version 1.0
        :response {:outputSpeech
@@ -37,37 +47,39 @@
                    :text (str "Your polling place is at " name ". The address is " address)
                    :shouldEndSession true}}})
     (do
-      (.log js/console (pr-str response))
-      (server-error))))
+      (.log js/console (str "Civic API Error: " (pr-str response)))
+      server-error-response)))
 
-(defn query-polling-place
+(defn query-params
   [address]
-  (let [env (-> js/process.env js/JSON.stringify js/JSON.parse js->clj)
-        civic-url "https://www.googleapis.com:443/civicinfo/v2/voterinfo"
-        params    {"address" address
-                   "key" (get env "CIVIC_API_KEY" nil)
-                   "productionDataOnly" false
-                   "returnAllAvailableData" true}]
-    (go (let [response (<! (http/get civic-url
-                                     {:query-params params
-                                      :accept "application/json"
-                                      :content-type "application/json"}))]
-          (process-response response)))))
+  (let [env (-> js/process.env js/JSON.stringify js/JSON.parse js->clj)]
+    {"address" address
+     "key" (get env "CIVIC_API_KEY" nil)
+     "productionDataOnly" (get env "PRODUCTION_DATA_ONLY" true)
+     "returnAllAvailableData" true}))
 
-(defn polling-place-response
+(defn parse-request
   [request]
   (let [slots (get-in request [:intent :slots])
         street (get-in slots [:street :value])
-        city (get-in slots [:city :value])
-        state (get-in slots [:state :value])
         zip (get-in slots [:zip :value])
-        address (str/join " " [street city state zip])]
-    (.log js/console (str "Getting polling place for " address))
-    (query-polling-place address)))
+        address (str/join " " [street zip])]
+    (query-params address)))
+
+(def civic-url "https://www.googleapis.com:443/civicinfo/v2/voterinfo")
 
 (defn intent
-  [session request]
-  (let [dialogState (:dialogState request)]
-    (condp = dialogState
-      "COMPLETED" (polling-place-response request)
-      (dialog-delegate))))
+  ([request] (intent request
+                     #(http/get civic-url
+                                {:query-params %1
+                                 :accept "application/json"
+                                 :content-type "application/json"})
+                     #(go (process-response (<! %1)))))
+  ([request query-fn process-fn]
+   (let [dialogState (:dialogState request)]
+     (condp = dialogState
+       "COMPLETED" (-> request
+                       parse-request
+                       query-fn
+                       process-fn)
+       dialog-delegate-response))))

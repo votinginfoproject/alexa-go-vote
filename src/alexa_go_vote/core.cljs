@@ -25,10 +25,7 @@
         intent (get-in request [:intent :name])]
    (cond
      (= type "LaunchRequest") launch-response
-     (= intent "pollingPlace") (pp/intent session request)
+     (= intent "pollingPlace") (pp/intent request)
      ;;check, I think there may be a new intent for didn't understand
      :else (default-response event)
      )))
-
-     ;; You can replace these response maps with calls to other functions that return similar maps.  The maps should correspond to the JSON requirements set forth
-     ;; here:   https://developer.amazon.com/public/solutions/alexa/alexa-skills-kit/docs/alexa-skills-kit-interface-reference#response-format

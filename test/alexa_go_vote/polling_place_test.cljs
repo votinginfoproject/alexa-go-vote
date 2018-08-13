@@ -1,4 +1,82 @@
 (ns alexa-go-vote.polling-place-test
-  (:require [alexa-go-vote.polling-place]))
+  (:require [alexa-go-vote.polling-place :as pp]
+            [cljs.test :refer-macros [deftest is testing async]]
+            [cljs.core.async :refer [<!] :refer-macros [go]]))
 
-(.log js/console "Polling Place Tests")
+(deftest body->polling-place-info-test
+  (testing "returns a name and full address"
+    (is (= ["School" "123 Main St, Entrance C, City, Zip"]
+           (pp/body->polling-place-info
+            {:pollingLocations
+             [{:address {:locationName "School"
+                         :line1 "123 Main St"
+                         :line2 "Entrance C"
+                         :city "City"
+                         :state "ST"
+                         :zip "Zip"}}]}))))
+  (testing "skips space for line2 when not present"
+    (is (= ["School" "123 Main St, City, Zip"]
+           (pp/body->polling-place-info
+            {:pollingLocations
+             [{:address {:locationName "School"
+                         :line1 "123 Main St"
+                         :city "City"
+                         :state "ST"
+                         :zip "Zip"}}]})))))
+
+(defn fail-if-called [params]
+  (throw (js/Error.
+          (str "Query fn should not have been called"
+               (pr-str params)))))
+
+(deftest intent-dialog-started-test
+  (testing "started"
+    (is (= pp/dialog-delegate-response
+           (pp/intent {:dialogState "STARTED"}
+                      fail-if-called
+                      fail-if-called)))))
+
+(deftest intent-dialog-in-progress-test
+  (testing "in progress"
+    (is (= pp/dialog-delegate-response
+           (pp/intent {:dialogState "IN_PROGRESS"}
+                      fail-if-called
+                      fail-if-called)))))
+
+(deftest intent-address-param-test
+  (testing "a completed dialog constructs the address/query params"
+    (pp/intent {:dialogState "COMPLETED"
+                :intent
+                {:slots
+                 {:street {:value "123 Main St"}
+                  :zip {:value "99999"}}}}
+               (fn [params]
+                 (is (= "123 Main St 99999"
+                        (get params "address"))))
+               identity)))
+
+(deftest intent-success-response-test
+  (testing "a completed dialog constructs the address/query params"
+    (let [query-fn (fn [_]
+                     {:status 200
+                      :body (->> {:pollingLocations
+                                  [{:address
+                                    {:locationName "School"
+                                     :line1 "123 Main St"
+                                     :city "City"
+                                     :zip "99999"}}]}
+                                 clj->js
+                                 (.stringify js/JSON))})
+          process-fn (fn [resp] (pp/process-response resp))
+          response
+          (pp/intent {:dialogState "COMPLETED"
+                      :intent
+                      {:slots
+                       {:street {:value "123 Main St"}
+                        :zip {:value "99999"}}}}
+                     query-fn
+                     process-fn)
+          expected-text (str "Your polling place is at School. "
+                             "The address is 123 Main St, City, 99999")]
+      (is (= expected-text
+             (get-in response [:response :outputSpeech :text]))))))

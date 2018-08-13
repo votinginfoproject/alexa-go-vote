@@ -5,7 +5,8 @@
                  [org.clojure/clojurescript "1.10.339"]
                  [io.nervous/cljs-lambda    "0.3.5"]
                  [com.github.tank157/cljs-http-node "fix-query-string"
-                  :exclusions [commons-codec]]]
+                  :exclusions [commons-codec]]
+                 [org.clojure/core.async "0.4.474"]]
   :plugins [[lein-cljsbuild "1.1.7"]
             [lein-npm       "0.6.2"]
             [lein-doo       "0.1.7"]
