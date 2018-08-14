@@ -27,6 +27,7 @@
 
 (defn body->polling-place-info
   [body]
+  (.log js/console (str "Response body: " (pr-str body)))
   (let [polling-locations (:pollingLocations body)
         polling-location (first polling-locations)
         address (get polling-location :address)
@@ -37,6 +38,7 @@
 
 (defn process-response
   [response]
+  (.log js/console "Civic API Response:" (pr-str response))
   (if (http/unexceptional-status? (:status response))
     (let [body (response->clj response)
           [name address] (body->polling-place-info body)]
@@ -53,6 +55,7 @@
 (defn query-params
   [address]
   (let [env (-> js/process.env js/JSON.stringify js/JSON.parse js->clj)]
+    (.log js/console (str "Environment: " (pr-str env)))
     {"address" address
      "key" (get env "CIVIC_API_KEY" nil)
      "productionDataOnly" (get env "PRODUCTION_DATA_ONLY" true)
@@ -64,17 +67,24 @@
         street (get-in slots [:street :value])
         zip (get-in slots [:zip :value])
         address (str/join " " [street zip])]
+    (.log js/console (str "parsed address is: " address))
     (query-params address)))
 
 (def civic-url "https://www.googleapis.com:443/civicinfo/v2/voterinfo")
 
+(defn live-query-fn
+  [params]
+  (http/get civic-url
+            {:query-params params
+             :accept "application/json"
+             :content-type "application/json"}))
+
+(defn live-process-fn
+  [response-chan]
+  (go (process-response (<! response-chan))))
+
 (defn intent
-  ([request] (intent request
-                     #(http/get civic-url
-                                {:query-params %1
-                                 :accept "application/json"
-                                 :content-type "application/json"})
-                     #(go (process-response (<! %1)))))
+  ([request] (intent request live-query-fn live-process-fn))
   ([request query-fn process-fn]
    (let [dialogState (:dialogState request)]
      (condp = dialogState

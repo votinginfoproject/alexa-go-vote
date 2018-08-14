@@ -4,7 +4,7 @@
 
 (def launch-response
   {:version 1.0
-   :response {:outputSpeech {:type "PlainText" :text "Welcome to Go Vote! You can ask me things like 'Where do I vote' or 'What is the polling place for 123 Main Sto'. How can I help?"}
+   :response {:outputSpeech {:type "PlainText" :text "Welcome to Go Vote! You can ask me things like 'Where do I vote' or 'What is my polling place'. How can I help?"}
               :shouldEndSession false}})
 
 (defn default-response [evt]

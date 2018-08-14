@@ -14,6 +14,18 @@ You will need to set up [Amazon Web Services CLI] (http://docs.aws.amazon.com/cl
 
 You will also need [Leiningen] (https://leiningen.org/)
 
+## Configuration
+
+There are a couple of environment variables that the application needs:
+
+`CIVIC_API_KEY`: the access key for the Civic Info API
+`PRODUCTION_DATA_ONLY`: true|false whether the API should only return production data.
+
+These environment vars will get pushed up the the Lambda function's environment. The
+way to configure them is on the command line like:
+
+```CIVIC_API_KEY=... PRODUCTION_DATA_ONLY=false lein cljs-lambda deploy```
+
 ## Deploying
 
 Run `lein cljs-lambda default-iam-role` if you don't have yet have suitable
@@ -28,7 +40,7 @@ Otherwise, add an IAM role ARN under the function's `:role` key in the
 Then:
 
 ```sh
-$ lein cljs-lambda deploy
+$ CIVIC_API_KEY=... PRODUCTION_DATA_ONLY=true lein cljs-lambda deploy
 ```
 
 ## Configure
