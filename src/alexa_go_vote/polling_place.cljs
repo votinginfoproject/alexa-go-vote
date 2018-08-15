@@ -10,12 +10,19 @@
   {:version 1.0
    :response {:directives [{:type "Dialog.Delegate"}]}})
 
-(def server-error-response
+(def no-info-response
   {:version 1.0
-   :response {:outputSpeech
-              {:type "PlainText"
-               :text "I'm sorry, we're experiencing a server problem. Goodbye."
-               :shouldEndSession true}}})
+   :response
+   {:outputSpeech
+    {:type "PlainText"
+     :text (str "I'm sorry, I couldn't find a result for that address. "
+                "Check with your local election official, or try again "
+                "closer to the election.")}
+    :card
+    {:type "Standard"
+     :title "No Results"
+     :text (str "You can try your search again at icantfindmypollingplace.com")}
+    :shouldEndSession true}})
 
 (defn response->clj
   [response]
@@ -32,30 +39,59 @@
         polling-location (first polling-locations)
         address (get polling-location :address)
         name (get address :locationName)
-        addr-comps (filter identity (map address [:line1 :line2 :city :zip]))
+        addr-comps (keep identity (map address [:line1 :line2 :city :zip]))
         addr-string (str/join ", " addr-comps)]
     [name addr-string]))
 
-(defn process-response
-  [response]
-  (.log js/console "Civic API Response:" (pr-str response))
-  (if (http/unexceptional-status? (:status response))
-    (let [body (response->clj response)
-          [name address] (body->polling-place-info body)]
-      (.log js/console "Responding with polling location " name)
+(defn polling-place-card
+  [text]
+  {:type "Standard"
+   :title "Your Polling Place"
+   :text (str text "\nFor more information, try your search at icantfindmypollingplace.com")})
+
+(defn first-polling-place-response
+  [body]
+  (let [[name address] (body->polling-place-info body)]
+    (.log js/console "Responding with polling location " name)
+    (let [text (str "Your polling place is at " name
+                    ". The address is " address)]
       {:version 1.0
        :response {:outputSpeech
                   {:type "PlainText"
-                   :text (str "Your polling place is at " name ". The address is " address)
-                   :shouldEndSession true}}})
+                   :text text}
+                  :card (polling-place-card text)
+                  :shouldEndSession true}})))
+
+(defn request-state
+  "Request the optional state slot value since apparently we couldn't
+  get a Civic API match with just address and zip"
+  [request]
+  {:version 1.0
+   :response
+   {:outputSpeech
+    {:type "PlainText"
+     :text "What state are you registered to vote in?"}
+    :shouldEndSession false
+    :directives [{:type "Dialog.ElicitSlot"
+                  :slotToElicit "state"
+                  :updatedIntent (:intent request)}]}})
+
+(defn process-response
+  [request response]
+  (if (http/unexceptional-status? (:status response))
+    (let [body (response->clj response)]
+      (if (contains? body :pollingLocations)
+        (first-polling-place-response body)
+        (if (str/blank? (get-in request [:intent :slots :state :value] nil))
+          (request-state request)
+          no-info-response)))
     (do
       (.log js/console (str "Civic API Error: " (pr-str response)))
-      server-error-response)))
+      no-info-response)))
 
 (defn query-params
   [address]
   (let [env (-> js/process.env js/JSON.stringify js/JSON.parse js->clj)]
-    (.log js/console (str "Environment: " (pr-str env)))
     {"address" address
      "key" (get env "CIVIC_API_KEY" nil)
      "productionDataOnly" (get env "PRODUCTION_DATA_ONLY" true)
@@ -65,8 +101,9 @@
   [request]
   (let [slots (get-in request [:intent :slots])
         street (get-in slots [:street :value])
+        state (get-in slots [:state :value])
         zip (get-in slots [:zip :value])
-        address (str/join " " [street zip])]
+        address (str/join " " (keep identity [street state zip]))]
     (.log js/console (str "parsed address is: " address))
     (query-params address)))
 
@@ -80,16 +117,16 @@
              :content-type "application/json"}))
 
 (defn live-process-fn
-  [response-chan]
-  (go (process-response (<! response-chan))))
+  [request response-chan]
+  (go (process-response request (<! response-chan))))
 
 (defn intent
   ([request] (intent request live-query-fn live-process-fn))
   ([request query-fn process-fn]
    (let [dialogState (:dialogState request)]
      (condp = dialogState
-       "COMPLETED" (-> request
-                       parse-request
-                       query-fn
-                       process-fn)
+       "COMPLETED" (->> request
+                        parse-request
+                        query-fn
+                        (process-fn request))
        dialog-delegate-response))))

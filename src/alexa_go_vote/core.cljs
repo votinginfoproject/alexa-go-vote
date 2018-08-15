@@ -4,14 +4,30 @@
 
 (def launch-response
   {:version 1.0
-   :response {:outputSpeech {:type "PlainText" :text "Welcome to Go Vote! You can ask me things like 'Where do I vote' or 'What is my polling place'. How can I help?"}
+   :response {:outputSpeech {:type "PlainText" :text "Welcome to Go Vote! I can help you find your polling place. Just ask me 'Where do I vote'?"}
               :shouldEndSession false}})
 
-(defn default-response [evt]
+(defn fallback-response [evt]
   (.log js/console (str "default response enacted for evt: " (pr-str evt)))
   {:version 1.0
-   :response {:outputSpeech {:type "PlainText" :text "Didn't understand"}
+   :response {:outputSpeech {:type "PlainText" :text "I'm sorry, I didn't quite understand that."}
               :shouldEndSession false}})
+
+(def help-response
+  {:version 1.0
+   :response
+   {:outputSpeech
+    {:type "PlainText"
+     :text "I can help locate your polling place, just say 'Where do I vote' and I'll aks some questions about where you are registered to vote. I'll use your address to look up your polling place, and don't worry, I'll never store it."}
+    :shouldEndSession false}})
+
+(def stop-response
+  {:version 1.0
+   :response
+   {:outputSpeech
+    {:type "PlainText"
+     :text "Ok, goodbye!"}
+    :shouldEndSession true}})
 
 (deflambda alexa-go-vote-magic
   "This function receives the JSON input from the Alexa function and
@@ -26,6 +42,7 @@
    (cond
      (= type "LaunchRequest") launch-response
      (= intent "pollingPlace") (pp/intent request)
-     ;;check, I think there may be a new intent for didn't understand
-     :else (default-response event)
-     )))
+     (= intent "AMAZON.HelpIntent") help-response
+     (= intent "AMAZON.StopIntent") stop-response
+     (= intent "AMAZON.CancelIntent") stop-response
+     :else (fallback-response event))))

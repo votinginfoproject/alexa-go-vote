@@ -24,7 +24,7 @@
                          :state "ST"
                          :zip "Zip"}}]})))))
 
-(defn fail-if-called [params]
+(defn fail-if-called [& params]
   (throw (js/Error.
           (str "Query fn should not have been called"
                (pr-str params)))))
@@ -53,10 +53,10 @@
                (fn [params]
                  (is (= "123 Main St 99999"
                         (get params "address"))))
-               identity)))
+               (fn [_ _]))))
 
 (deftest intent-success-response-test
-  (testing "a completed dialog constructs the address/query params"
+  (testing "processes a successful response...successfully"
     (let [query-fn (fn [_]
                      {:status 200
                       :body (->> {:pollingLocations
@@ -67,7 +67,7 @@
                                      :zip "99999"}}]}
                                  clj->js
                                  (.stringify js/JSON))})
-          process-fn (fn [resp] (pp/process-response resp))
+          process-fn (fn [req resp] (pp/process-response req resp))
           response
           (pp/intent {:dialogState "COMPLETED"
                       :intent
@@ -77,6 +77,74 @@
                      query-fn
                      process-fn)
           expected-text (str "Your polling place is at School. "
-                             "The address is 123 Main St, City, 99999")]
+                             "The address is 123 Main St, City, 99999")
+          card-text (str expected-text "\nFor more information, try your search at icantfindmypollingplace.com")]
       (is (= expected-text
-             (get-in response [:response :outputSpeech :text]))))))
+             (get-in response [:response :outputSpeech :text])))
+      (is (= card-text
+             (get-in response [:response :card :text]))))))
+
+(deftest intent-http-failure-response-test
+  (testing "when we get back a non-successful http code"
+    (let [query-fn (fn [_]
+                     {:status 400})
+          process-fn (fn [req resp] (pp/process-response req resp))
+          response
+          (pp/intent {:dialogState "COMPLETED"
+                      :intent
+                      {:slots
+                       {:street {:value "123 Main St"}
+                        :zip {:value "99999"}}}}
+                     query-fn
+                     process-fn)]
+      (is (= pp/no-info-response
+             response)))))
+
+(deftest intent-needs-state-response-test
+  (testing "an empty 200 response prompts request for state"
+    (let [query-fn (fn [_]
+                     {:status 200
+                      :body {}})
+          process-fn (fn [req resp] (pp/process-response req resp))
+          request {:dialogState "COMPLETED"
+                   :intent {:name "pollingPlace"
+                            :slots
+                            {:street {:name "street"
+                                      :value "123 Main St"
+                                      :confirmationStatus "CONFIRMED"}
+                             :state {:name "state"
+                                     :confirmationStatus "NONE"}
+                             :zip {:name "zip"
+                                   :value "99999"
+                                   :confirmationStatus "CONFIRMED"}}}}
+          response
+          (pp/intent request
+                     query-fn
+                     process-fn)]
+      (is (= (pp/request-state request)
+             response)))))
+
+(deftest intent-state-still-not-enough-response-test
+  (testing "an empty 200 response prompts request for state"
+    (let [query-fn (fn [_]
+                     {:status 200
+                      :body {}})
+          process-fn (fn [req resp] (pp/process-response req resp))
+          request {:dialogState "COMPLETED"
+                   :intent {:name "pollingPlace"
+                            :slots
+                            {:street {:name "street"
+                                      :value "123 Main St"
+                                      :confirmationStatus "CONFIRMED"}
+                             :state {:name "state"
+                                     :value "State"
+                                     :confirmationStatus "NONE"}
+                             :zip {:name "zip"
+                                   :value "99999"
+                                   :confirmationStatus "CONFIRMED"}}}}
+          response
+          (pp/intent request
+                     query-fn
+                     process-fn)]
+      (is (= pp/no-info-response
+             response)))))
