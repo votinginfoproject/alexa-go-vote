@@ -5,7 +5,8 @@
                  [org.clojure/clojurescript "1.10.339"]
                  [io.nervous/cljs-lambda    "0.3.5"]
                  [com.github.tank157/cljs-http-node "fix-query-string"
-                  :exclusions [commons-codec]]]
+                  :exclusions [commons-codec]]
+                 [org.clojure/core.async "0.4.474"]]
   :plugins [[lein-cljsbuild "1.1.7"]
             [lein-npm       "0.6.2"]
             [lein-doo       "0.1.7"]
@@ -14,6 +15,8 @@
   :npm {:dependencies [[source-map-support "0.4.0"]]}
   :source-paths ["src"]
   :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
+  :doo {:build "test"}
+  :aliases {"test" ["doo" "node" "once"]}
   :profiles
   {:dev-overrides {}
    :dev
@@ -27,7 +30,9 @@
    :resource-dirs ["static"]
    :functions
    [{:name   "alexa-go-vote-magic"
-     :invoke alexa-go-vote.core/alexa-go-vote-magic}]}
+     :invoke alexa-go-vote.core/alexa-go-vote-magic
+     :env {"CIVIC_API_KEY" ~(System/getenv "CIVIC_API_KEY")
+           "PRODUCTION_DATA_ONLY" ~(System/getenv "PRODUCTION_DATA_ONLY")}}]}
   :cljsbuild
   {:builds [{:id "alexa-go-vote"
              :source-paths ["src"]
@@ -37,7 +42,7 @@
                         :target        :nodejs
                         :language-in   :ecmascript5
                         :optimizations :advanced}}
-            {:id "alexa-go-vote-test"
+            {:id "test"
              :source-paths ["src" "test"]
              :compiler {:output-to     "target/alexa_go_vote_test/alexa-go-vote.js"
                         :output-dir    "target/alexa_go_vote_test"
