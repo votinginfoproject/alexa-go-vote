@@ -18,7 +18,7 @@
    :response
    {:outputSpeech
     {:type "PlainText"
-     :text "I can help locate your polling place, just say 'Where do I vote' and I'll aks some questions about where you are registered to vote. I'll use your address to look up your polling place, and don't worry, I'll never store it."}
+     :text "I can help locate your polling place, just say 'Where do I vote' and I'll ask some questions about where you are registered to vote. I'll use your address to look up your polling place, and don't worry, I'll never store your address."}
     :shouldEndSession false}})
 
 (def stop-response
