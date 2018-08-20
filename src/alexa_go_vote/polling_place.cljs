@@ -1,5 +1,6 @@
 (ns alexa-go-vote.polling-place
-  (:require [clojure.string :as str]
+  (:require [alexa-go-vote.logging :as log]
+            [clojure.string :as str]
             [cljs-http.client :as http]
             [cljs.core.async :refer [<!]]
             [cljs.nodejs :as node]
@@ -34,7 +35,7 @@
 
 (defn body->polling-place-info
   [body]
-  (.log js/console (str "Response body: " (pr-str body)))
+  (log/debug "Response body:" (pr-str body))
   (let [polling-locations (:pollingLocations body)
         polling-location (first polling-locations)
         address (get polling-location :address)
@@ -52,7 +53,7 @@
 (defn first-polling-place-response
   [body]
   (let [[name address] (body->polling-place-info body)]
-    (.log js/console "Responding with polling location " name)
+    (log/debug "Responding with polling location:" name)
     (let [text (str "Your polling place is at " name
                     ". The address is " address)]
       {:version 1.0
@@ -86,7 +87,7 @@
           (request-state request)
           no-info-response)))
     (do
-      (.log js/console (str "Civic API Error: " (pr-str response)))
+      (log/debug "Civic API Error:" (pr-str response))
       no-info-response)))
 
 (defn query-params
@@ -104,7 +105,7 @@
         state (get-in slots [:state :value])
         zip (get-in slots [:zip :value])
         address (str/join " " (keep identity [street state zip]))]
-    (.log js/console (str "parsed address is: " address))
+    (log/debug "Parsed request address is:" address)
     (query-params address)))
 
 (def civic-url "https://www.googleapis.com:443/civicinfo/v2/voterinfo")

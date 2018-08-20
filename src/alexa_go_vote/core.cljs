@@ -1,5 +1,6 @@
 (ns alexa-go-vote.core
   (:require [cljs-lambda.macros :refer-macros [deflambda]]
+            [alexa-go-vote.logging :as log]
             [alexa-go-vote.polling-place :as pp]))
 
 (def launch-response
@@ -8,7 +9,7 @@
               :shouldEndSession false}})
 
 (defn fallback-response [evt]
-  (.log js/console (str "default response enacted for evt: " (pr-str evt)))
+  (log/error "default response enacted for event:" (pr-str evt))
   {:version 1.0
    :response {:outputSpeech {:type "PlainText" :text "I'm sorry, I didn't quite understand that."}
               :shouldEndSession false}})
@@ -34,7 +35,7 @@
    creates a map of the items of interest.  You can then dispatch on
    the input map to call functions to build the proper response map"
   [event ctx]
-  (.log js/console (str "Event: " (pr-str event)) )
+  (log/debug "Incoming Event:" (pr-str event))
   (let [{:keys [session request
                 version timestamp]} event
         type (:type request)

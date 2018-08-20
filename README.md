@@ -18,8 +18,9 @@ You will also need [Leiningen] (https://leiningen.org/)
 
 There are a couple of environment variables that the application needs:
 
-`CIVIC_API_KEY`: the access key for the Civic Info API
+`CIVIC_API_KEY`: the access key for the Civic Info API.
 `PRODUCTION_DATA_ONLY`: true|false whether the API should only return production data.
+`DEBUG`: set to true to have debug logging output turned on, defaults to false.
 
 These environment vars will get pushed up the the Lambda function's environment. The
 way to configure them is on the command line like:
