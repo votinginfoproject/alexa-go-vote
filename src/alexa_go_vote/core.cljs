@@ -40,6 +40,8 @@
                 version timestamp]} event
         type (:type request)
         intent (get-in request [:intent :name])]
+    ;; If we ever offer more of our own intents than just pollingPlace
+    ;; we should restructure this a bit more cleanly with a multimethod
    (cond
      (= type "LaunchRequest") launch-response
      (= intent "pollingPlace") (pp/intent request)
