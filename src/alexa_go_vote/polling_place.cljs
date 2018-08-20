@@ -34,15 +34,11 @@
     (js->clj $ :keywordize-keys true)))
 
 (defn body->polling-place-info
-  [body]
+  [{:keys [pollingLocations] :as body}]
   (log/debug "Response body:" (pr-str body))
-  (let [polling-locations (:pollingLocations body)
-        polling-location (first polling-locations)
-        address (get polling-location :address)
-        name (get address :locationName)
-        addr-comps (keep identity (map address [:line1 :line2 :city :zip]))
-        addr-string (str/join ", " addr-comps)]
-    [name addr-string]))
+  (let [address (:address (first pollingLocations))]
+    [(:locationName address)
+     (str/join ", " (keep identity (map address [:line1 :line2 :city :zip])))]))
 
 (defn polling-place-card
   [text]
