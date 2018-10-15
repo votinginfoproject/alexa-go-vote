@@ -1,5 +1,6 @@
 (ns alexa-go-vote.polling-place
   (:require [alexa-go-vote.logging :as log]
+            [alexa-go-vote.util :refer [response-body->clj]]
             [clojure.string :as str]
             [cljs-http.client :as http]
             [cljs.core.async :refer [<!]]
@@ -76,7 +77,7 @@
 (defn process-response
   [request response]
   (if (http/unexceptional-status? (:status response))
-    (let [body (response->clj response)]
+    (let [body (response-body->clj (:body response))]
       (if (contains? body :pollingLocations)
         (first-polling-place-response body)
         (if (str/blank? (get-in request [:intent :slots :state :value] nil))
