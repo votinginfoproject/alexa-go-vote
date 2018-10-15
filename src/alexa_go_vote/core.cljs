@@ -67,8 +67,8 @@
     ;; If we ever offer more of our own intents than just pollingPlace
     ;; we should restructure this a bit more cleanly with a multimethod
    (cond
-     (= intent "pollingPlace") (pp/intent request)
      (= type "LaunchRequest") (launch-response context)
+     (= intent "pollingPlace") (pp/intent event)
      (= intent "AMAZON.HelpIntent") help-response
      (= intent "AMAZON.StopIntent") stop-response
      (= intent "AMAZON.CancelIntent") stop-response

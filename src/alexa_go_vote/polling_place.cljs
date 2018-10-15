@@ -1,5 +1,6 @@
 (ns alexa-go-vote.polling-place
-  (:require [alexa-go-vote.logging :as log]
+  (:require [alexa-go-vote.address-api :as aa]
+            [alexa-go-vote.logging :as log]
             [alexa-go-vote.util :refer [response-body->clj]]
             [clojure.string :as str]
             [cljs-http.client :as http]
@@ -25,14 +26,6 @@
      :title "No Results"
      :text (str "You can try your search again at icantfindmypollingplace.com")}
     :shouldEndSession true}})
-
-(defn response->clj
-  [response]
-  (as-> response $
-    (:body $)
-    (.toString $)
-    (.parse js/JSON $)
-    (js->clj $ :keywordize-keys true)))
 
 (defn body->polling-place-info
   [{:keys [pollingLocations] :as body}]
@@ -81,7 +74,9 @@
       (if (contains? body :pollingLocations)
         (first-polling-place-response body)
         (if (str/blank? (get-in request [:intent :slots :state :value] nil))
-          (request-state request)
+          (if (= "COMPLETED" (:dialogState request))
+            (request-state request)
+            no-info-response)
           no-info-response)))
     (do
       (log/debug "Civic API Error:" (pr-str response))
@@ -95,14 +90,21 @@
      "productionDataOnly" (get env "PRODUCTION_DATA_ONLY" true)
      "returnAllAvailableData" true}))
 
-(defn parse-request
+(defn parse-dialog-request
   [request]
   (let [slots (get-in request [:intent :slots])
         street (get-in slots [:street :value])
         state (get-in slots [:state :value])
         zip (get-in slots [:zip :value])
-        address (str/join " " (keep identity [street state zip]))]
+        address (str/join " " (remove str/blank? [street state zip]))]
     (log/debug "Parsed request address is:" address)
+    (query-params address)))
+
+(defn parse-device-address-request
+  [request]
+  (let [slots (get-in request [:intent :slots])
+        address (get-in slots [:full_address :value])]
+    (log/debug "Request device address is:" address)
     (query-params address)))
 
 (def civic-url "https://www.googleapis.com:443/civicinfo/v2/voterinfo")
@@ -118,13 +120,80 @@
   [request response-chan]
   (go (process-response request (<! response-chan))))
 
+(defn get-full-address
+  [session]
+  (get-in session [:attributes :full_address]))
+
+(defn has-full-address?
+  [session]
+  (not (str/blank? (get-full-address session))))
+
+(defn confirmed-full-address?
+  [request]
+  (= "CONFIRMED"
+     (get-in request [:intent :slots :full_address :confirmationStatus])))
+
+(defn disconfirmed-full-address?
+  [request]
+  (= "DENIED"
+     (get-in request [:intent :slots :full_address :confirmationStatus])))
+
+(defn confirm-full-address
+  [address]
+  {:version 1.0
+   :response
+   {:outputSpeech
+    {:type "PlainText"
+     :text (str "Are you still registered to vote at " address)}
+    :directives
+    [{:type "Dialog.ConfirmSlot"
+      :slotToConfirm "full_address"
+      :updatedIntent
+      {:name "pollingPlace"
+       :confirmationStatus "NONE"
+       :slots
+       {:full_address
+        {:name "full_address"
+         :value address
+         :confirmationStatus "NONE"}}}}]}})
+
 (defn intent
-  ([request] (intent request live-query-fn live-process-fn))
-  ([request query-fn process-fn]
+  ([event] (intent event live-query-fn live-process-fn aa/retrieve-address))
+  ([{:keys [request context session]} query-fn process-fn address-lookup-fn]
    (let [dialogState (:dialogState request)]
-     (condp = dialogState
-       "COMPLETED" (->> request
-                        parse-request
-                        query-fn
-                        (process-fn request))
-       dialog-delegate-response))))
+     (cond
+       ;; first end condition is if we completed the Dialog, lookup polling
+       ;; place by civic info api using the street address and zip code
+       (= "COMPLETED" dialogState)
+       (->> request parse-dialog-request query-fn (process-fn request))
+
+       ;; second end condition is if we have a confirmed full address,
+       ;; lookup the polling place by civic info api with full address
+       (confirmed-full-address? request)
+       (->> request parse-device-address-request query-fn (process-fn request))
+
+       ;; if we're already in a dialog and it hasn't finished, continue it
+       (= "IN_PROGRESS" dialogState)
+       dialog-delegate-response
+
+       ;; if they have a full address and the confirmation status is DENIED,
+       ;; fall back to standard Dialog
+       (disconfirmed-full-address? request)
+       dialog-delegate-response
+
+       ;; This would be at the start of the intent, if we have an
+       ;; address from a returning already authorized user, let's confirm it
+       (has-full-address? session)
+       (-> session get-full-address confirm-full-address)
+
+       ;; otherwise, let's try once more to lookup the address, and if we
+       ;; now have access let's confirm it, otherwise bail out to the
+       ;; standard dialog
+       :else
+       (address-lookup-fn
+        context
+        (fn [address-response]
+          (if (and (string? address-response)
+                   (not (str/blank? address-response)))
+            (confirm-full-address address-response)
+            dialog-delegate-response)))))))
