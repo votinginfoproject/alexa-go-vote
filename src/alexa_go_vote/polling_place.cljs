@@ -79,7 +79,7 @@
             no-info-response)
           no-info-response)))
     (do
-      (log/debug "Civic API Error:" (pr-str response))
+      (log/error "Civic API Error:" (pr-str response))
       no-info-response)))
 
 (defn query-params
@@ -87,10 +87,11 @@
   (let [env (-> js/process.env js/JSON.stringify js/JSON.parse js->clj)]
     {"address" address
      "key" (get env "CIVIC_API_KEY" nil)
+     "officialOnly" false
      "productionDataOnly" (get env "PRODUCTION_DATA_ONLY" true)
      "returnAllAvailableData" true}))
 
-(defn parse-dialog-request
+(defn parse-request
   [request]
   (let [slots (get-in request [:intent :slots])
         street (get-in slots [:street :value])
@@ -98,13 +99,6 @@
         zip (get-in slots [:zip :value])
         address (str/join " " (remove str/blank? [street state zip]))]
     (log/debug "Parsed request address is:" address)
-    (query-params address)))
-
-(defn parse-device-address-request
-  [request]
-  (let [slots (get-in request [:intent :slots])
-        address (get-in slots [:full_address :value])]
-    (log/debug "Request device address is:" address)
     (query-params address)))
 
 (def civic-url "https://www.googleapis.com:443/civicinfo/v2/voterinfo")
@@ -126,36 +120,32 @@
 
 (defn has-full-address?
   [session]
-  (not (str/blank? (get-full-address session))))
-
-(defn confirmed-full-address?
-  [request]
-  (= "CONFIRMED"
-     (get-in request [:intent :slots :full_address :confirmationStatus])))
-
-(defn disconfirmed-full-address?
-  [request]
-  (= "DENIED"
-     (get-in request [:intent :slots :full_address :confirmationStatus])))
+  (seq (get-full-address session)))
 
 (defn confirm-full-address
-  [address]
-  {:version 1.0
-   :response
-   {:outputSpeech
-    {:type "PlainText"
-     :text (str "Are you still registered to vote at " address)}
-    :directives
-    [{:type "Dialog.ConfirmSlot"
-      :slotToConfirm "full_address"
-      :updatedIntent
-      {:name "pollingPlace"
-       :confirmationStatus "NONE"
-       :slots
-       {:full_address
-        {:name "full_address"
-         :value address
-         :confirmationStatus "NONE"}}}}]}})
+  [{:keys [addressLine1 postalCode stateOrRegion]}]
+  (if (every? str/blank? [addressLine1 postalCode stateOrRegion])
+    dialog-delegate-response
+    {:version 1.0
+     :response
+     {:directives
+      [{:type "Dialog.Delegate"
+        :updatedIntent
+        {:name "pollingPlace"
+         :confirmationStatus "NONE"
+         :slots
+         {:street
+          {:name "street"
+           :value (or addressLine1 "")
+           :confirmationStatus "NONE"}
+          :zip
+          {:name "zip"
+           :value (or postalCode "")
+           :confirmationStatus "NONE"}
+          :state
+          {:name "state"
+           :value (or stateOrRegion "")
+           :confirmationStatus "NONE"}}}}]}}))
 
 (defn intent
   ([event] (intent event live-query-fn live-process-fn aa/retrieve-address))
@@ -165,20 +155,10 @@
        ;; first end condition is if we completed the Dialog, lookup polling
        ;; place by civic info api using the street address and zip code
        (= "COMPLETED" dialogState)
-       (->> request parse-dialog-request query-fn (process-fn request))
-
-       ;; second end condition is if we have a confirmed full address,
-       ;; lookup the polling place by civic info api with full address
-       (confirmed-full-address? request)
-       (->> request parse-device-address-request query-fn (process-fn request))
+       (->> request parse-request query-fn (process-fn request))
 
        ;; if we're already in a dialog and it hasn't finished, continue it
        (= "IN_PROGRESS" dialogState)
-       dialog-delegate-response
-
-       ;; if they have a full address and the confirmation status is DENIED,
-       ;; fall back to standard Dialog
-       (disconfirmed-full-address? request)
        dialog-delegate-response
 
        ;; This would be at the start of the intent, if we have an
@@ -193,7 +173,6 @@
        (address-lookup-fn
         context
         (fn [address-response]
-          (if (and (string? address-response)
-                   (not (str/blank? address-response)))
+          (if (not (keyword? address-response))
             (confirm-full-address address-response)
             dialog-delegate-response)))))))

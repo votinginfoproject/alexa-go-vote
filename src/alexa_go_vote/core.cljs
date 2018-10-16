@@ -4,12 +4,15 @@
             [alexa-go-vote.logging :as log]
             [alexa-go-vote.polling-place :as pp]))
 
-(def standard-launch-response
+(defn standard-launch-response
+  [ask-for-access?]
   {:version 1.0
    :response
    {:outputSpeech
     {:type "PlainText"
-     :text "Welcome to Go Vote! I can help you find your polling place. Just ask me 'Where do I vote'?"}
+     :text (if ask-for-access?
+             "Welcome to Go Vote! I can help you find your polling place. You can give me access to your Device Address in the Alexa app, or I can just ask you about the address you are registered to vote at. When you are ready, just ask me 'Where do I vote'?"
+             "Welcome to Go Vote! I can help you find your polling place. Just ask me 'Where do I vote'?")}
     :shouldEndSession false}})
 
 (defn launch-response
@@ -20,18 +23,14 @@
   (aa/retrieve-address
    context
    (fn [address-response]
-     (let [resp standard-launch-response]
-       (if (string? address-response)
-         (merge resp {:sessionAttributes {:full_address address-response}})
-         (if (= :unauthorized address-response)
-           (merge resp {:sessionAttributes
-                        {:addressApiLookupCount 1}
-
-                        :card
-                        {:type "AskForPermissionsConsent"
-                         :permissions ["read::alexa:device:all:address"]}})
-           (merge resp {:sessionAttributes
-                        {:addressApiLookupCount 1}})))))))
+     (if (map? address-response)
+       (merge (standard-launch-response false) resp {:sessionAttributes {:full_address address-response}})
+       (if (= :unauthorized address-response)
+         (merge (standard-launch-response true)
+                {:card
+                 {:type "AskForPermissionsConsent"
+                  :permissions ["read::alexa:device:all:address"]}})
+         (standard-launch-response false))))))
 
 (defn fallback-response [evt]
   (log/error "default response enacted for event:" (pr-str evt))

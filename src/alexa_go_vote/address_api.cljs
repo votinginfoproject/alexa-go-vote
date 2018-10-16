@@ -10,23 +10,16 @@
 
 (defn address-api-url
   "Constructs a URL to request a Device Address"
-  [device-id]
-  (str "https://api.amazonalexa.com/v1/devices/" device-id
-       "/settings/address"))
-
-(defn extract-address
-  [{:keys [addressLine1 city stateOrRegion postalCode]}]
-  (str/join " " (remove str/blank? [addressLine1 city
-                                    stateOrRegion postalCode])))
+  [api-endpoint device-id]
+  (str api-endpoint ":443/v1/devices/" device-id "/settings/address"))
 
 (defn process-response
   [response callback]
-  (let [body (response-body->clj (:body response))
-        status (:status response)]
+  (let [status (:status response)]
     (when-not (= 200 status)
       (log/error "Device Address API Response Not Success: " (pr-str response)))
     (condp = status
-      200 (callback (extract-address body))
+      200 (callback (-> response :body response-body->clj))
       204 (callback :no-address-available)
       403 (callback :not-authorized)
       405 (callback :not-supported)
@@ -37,10 +30,13 @@
 (defn live-query-fn
   "Queries the Amazon Address API, returning an async channel with the
   response"
-  [device-id api-access-token]
-  (http/get (address-api-url device-id)
-            {:headers {"Authorization" (str "Bearer " api-access-token)}
-             :accept "application/json"}))
+  [api-endpoint device-id api-access-token]
+  (let [url (address-api-url api-endpoint device-id)
+        params {:headers {"Authorization" (str "Bearer " api-access-token)}
+                :accept "application/json"}]
+    (log/debug "Querying address api at url: " url)
+    (log/debug "With params: " (pr-str params))
+    (http/get url params)))
 
 (defn live-process-fn
   "Processes the response on the response channel, sending
@@ -53,7 +49,8 @@
   ([context callback]
    (retrieve-address context callback live-query-fn live-process-fn))
   ([context callback query-fn process-fn]
-   (let [device-id (get-in context [:System :device :deviceId])
-         api-access-token (get-in context [:System] :apiAccessToken)]
-     (-> (query-fn device-id api-access-token)
+   (let [api-endpoint (get-in context [:System :apiEndpoint])
+         device-id (get-in context [:System :device :deviceId])
+         api-access-token (get-in context [:System :apiAccessToken])]
+     (-> (query-fn api-endpoint device-id api-access-token)
          (process-fn callback)))))
