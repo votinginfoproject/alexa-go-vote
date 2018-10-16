@@ -4,7 +4,7 @@
   :dependencies [[org.clojure/clojure       "1.9.0"]
                  [org.clojure/clojurescript "1.10.339"]
                  [io.nervous/cljs-lambda    "0.3.5"]
-                 [com.github.tank157/cljs-http-node "fix-query-string"
+                 [com.github.tank157/cljs-http-node "master-SNAPSHOT"
                   :exclusions [commons-codec]]
                  [org.clojure/core.async "0.4.474"]]
   :plugins [[lein-cljsbuild "1.1.7"]
@@ -26,7 +26,8 @@
 
      :plugins      [[org.bodil/lein-noderepl "0.1.11"]]}]}
   :cljs-lambda
-  {:defaults      {:role "arn:aws:iam::858394542481:role/cljs-lambda-default"}
+  {:defaults      {:role "arn:aws:iam::858394542481:role/cljs-lambda-default"
+                   :runtime "nodejs8.10"}
    :resource-dirs ["static"]
    :functions
    [{:name   "alexa-go-vote-magic"
