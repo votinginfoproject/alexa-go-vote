@@ -11,8 +11,8 @@
    {:outputSpeech
     {:type "PlainText"
      :text (if ask-for-access?
-             "Welcome to Go Vote! I can help you find your polling place. You can give me access to your Device Address in the Alexa app, or I can just ask you about the address you are registered to vote at. When you are ready, just ask me 'Where do I vote'?"
-             "Welcome to Go Vote! I can help you find your polling place. Just ask me 'Where do I vote'?")}
+             "Welcome to Voting Info! I can help you find your polling place. You can give me access to your Device Address in the Alexa app, or I can just ask you about the address you are registered to vote at. When you are ready, just ask me 'Where do I vote'?"
+             "Welcome to Voting Info! I can help you find your polling place. Just ask me 'Where do I vote'?")}
     :shouldEndSession false}})
 
 (defn launch-response
@@ -24,12 +24,13 @@
    context
    (fn [address-response]
      (if (map? address-response)
-       (merge (standard-launch-response false) resp {:sessionAttributes {:full_address address-response}})
-       (if (= :unauthorized address-response)
-         (merge (standard-launch-response true)
-                {:card
-                 {:type "AskForPermissionsConsent"
-                  :permissions ["read::alexa:device:all:address"]}})
+       (merge (standard-launch-response false) {:sessionAttributes {:full_address address-response}})
+       (if (= :not-authorized address-response)
+         (assoc-in
+          (standard-launch-response true)
+          [:response :card]
+          {:type "AskForPermissionsConsent"
+           :permissions ["read::alexa:device:all:address"]})
          (standard-launch-response false))))))
 
 (defn fallback-response [evt]

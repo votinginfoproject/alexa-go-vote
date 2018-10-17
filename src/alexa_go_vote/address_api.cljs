@@ -34,8 +34,6 @@
   (let [url (address-api-url api-endpoint device-id)
         params {:headers {"Authorization" (str "Bearer " api-access-token)}
                 :accept "application/json"}]
-    (log/debug "Querying address api at url: " url)
-    (log/debug "With params: " (pr-str params))
     (http/get url params)))
 
 (defn live-process-fn
