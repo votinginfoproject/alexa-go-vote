@@ -24,7 +24,7 @@
     :card
     {:type "Standard"
      :title "No Results"
-     :text (str "You can try your search again at icantfindmypollingplace.com")}
+     :text (str "You can try your search again at gettothepolls.com")}
     :shouldEndSession true}})
 
 (defn body->polling-place-info
@@ -38,7 +38,8 @@
   [text]
   {:type "Standard"
    :title "Your Polling Place"
-   :text (str text "\nFor more information, try your search at icantfindmypollingplace.com")})
+   :text (str text
+              "\nFor more information, try your search at gettothepolls.com")})
 
 (defn first-polling-place-response
   [body]
