@@ -4,4 +4,4 @@ set -eo pipefail
 
 lein test
 
-lein cljs-lambda deploy :aws-profile vip-lambda
+lein cljs-lambda deploy
