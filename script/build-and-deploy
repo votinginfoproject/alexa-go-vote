@@ -1,0 +1,7 @@
+#!/bin/bash
+
+set -eo pipefail
+
+lein test
+
+lein cljs-lambda deploy
