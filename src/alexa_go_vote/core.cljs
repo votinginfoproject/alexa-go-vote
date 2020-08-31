@@ -5,7 +5,7 @@
 
 (def launch-response
   {:version 1.0
-   :response {:outputSpeech {:type "PlainText" :text "Welcome to Go Vote! I can help you find your polling place. Just ask me 'Where do I vote'?"}
+   :response {:outputSpeech {:type "PlainText" :text "This is Democracy Works here to help you find your polling place. Just ask me 'Where do I vote'?"}
               :shouldEndSession false}})
 
 (defn fallback-response [evt]

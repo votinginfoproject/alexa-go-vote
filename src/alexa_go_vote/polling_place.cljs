@@ -44,7 +44,7 @@
   [text]
   {:type "Standard"
    :title "Your Polling Place"
-   :text (str text "\nFor more information, try your search at icantfindmypollingplace.com")})
+   :text (str text "\nFor more information, try your search at gettothepolls.org")})
 
 (defn first-polling-place-response
   [body]

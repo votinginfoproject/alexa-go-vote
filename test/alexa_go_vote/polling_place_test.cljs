@@ -78,7 +78,7 @@
                      process-fn)
           expected-text (str "Your polling place is at School. "
                              "The address is 123 Main St, City, 99999")
-          card-text (str expected-text "\nFor more information, try your search at icantfindmypollingplace.com")]
+          card-text (str expected-text "\nFor more information, try your search at gettothepolls.org")]
       (is (= expected-text
              (get-in response [:response :outputSpeech :text])))
       (is (= card-text

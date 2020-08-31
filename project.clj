@@ -1,28 +1,28 @@
 (defproject alexa-go-vote "0.1.0-SNAPSHOT"
   :description "FIXME"
   :url "http://please.FIXME"
-  :dependencies [[org.clojure/clojure       "1.9.0"]
-                 [org.clojure/clojurescript "1.10.339"]
+  :dependencies [[org.clojure/clojure       "1.10.1"]
+                 [org.clojure/clojurescript "1.10.773"]
                  [io.nervous/cljs-lambda    "0.3.5"]
                  [com.github.tank157/cljs-http-node "fix-query-string"
                   :exclusions [commons-codec]]
-                 [org.clojure/core.async "0.4.474"]]
-  :plugins [[lein-cljsbuild "1.1.7"]
+                 [org.clojure/core.async "1.3.610"]]
+  :plugins [[lein-cljsbuild "1.1.8"]
             [lein-npm       "0.6.2"]
-            [lein-doo       "0.1.7"]
+            [lein-doo       "0.1.10"]
             [io.nervous/lein-cljs-lambda "0.6.6"]]
   :repositories [["jitpack" "https://jitpack.io"]]
   :npm {:dependencies [[source-map-support "0.4.0"]]}
   :source-paths ["src"]
-  :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
+  :repl-options {:nrepl-middleware [cider.piggieback/wrap-cljs-repl]}
   :doo {:build "test"}
   :aliases {"test" ["doo" "node" "once"]}
   :profiles
   {:dev-overrides {}
    :dev
    [:dev-overrides
-    {:dependencies [[com.cemerick/piggieback "0.2.2"]
-                    [cljs-node-io "0.5.0"]]
+    {:dependencies [[cider/piggieback "0.5.1"]
+                    [cljs-node-io "1.1.2"]]
 
      :plugins      [[org.bodil/lein-noderepl "0.1.11"]]}]}
   :cljs-lambda
