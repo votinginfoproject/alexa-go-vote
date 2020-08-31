@@ -32,6 +32,7 @@
    :functions
    [{:name   "alexa-go-vote-magic"
      :create true
+     :runtime "nodejs12.x"
      :invoke alexa-go-vote.core/alexa-go-vote-magic
      :env {"CIVIC_API_KEY" ~(System/getenv "CIVIC_API_KEY")
            "PRODUCTION_DATA_ONLY" ~(System/getenv "PRODUCTION_DATA_ONLY")}}]}
