@@ -42,13 +42,13 @@
                         :output-dir    "target/alexa_go_vote"
                         :source-map    "target/alexa_go_vote/alexa-go-vote.js.map"
                         :target        :nodejs
-                        :language-in   :ecmascript5
+                        :language-in   :ecmascript6
                         :optimizations :advanced}}
             {:id "test"
              :source-paths ["src" "test"]
              :compiler {:output-to     "target/alexa_go_vote_test/alexa-go-vote.js"
                         :output-dir    "target/alexa_go_vote_test"
                         :target        :nodejs
-                        :language-in   :ecmascript5
+                        :language-in   :ecmascript6
                         :optimizations :none
                         :main          alexa-go-vote.test-runner}}]})
